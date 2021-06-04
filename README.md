@@ -25,3 +25,32 @@ julia> Pkg.build("PyCall")
 julia> Pkg.add("https://github.com/LinjianMa/AutoHOOT.jl.git")
 ```
 
+Now you should be able to start using AutoHOOT:
+```julia
+julia> using AutoHOOT
+
+julia> const ad = AutoHOOT.autodiff
+AutoHOOT.autodiff
+
+julia> const gops = AutoHOOT.graphops
+AutoHOOT.graphops
+
+julia> A = ad.Variable(name = "A", shape = [2, 2])
+PyObject A
+
+julia> out = ad.einsum("ab,bc->ac", A, ad.einsum("ab,bc->ac", ad.identity(2), ad.identity(2)))
+PyObject T.einsum('ab,bc->ac',A,T.einsum('ab,bc->ac',T.identity(2),T.identity(2)))
+
+julia> newout_optimize = gops.optimize(out)
+[2021-06-04 10:08:34,419 graph_optimizer.py:138] Start fusing einsum
+[2021-06-04 10:08:34,419 graph_optimizer.py:190] Generated new subscript: ab,bd,dc->ac
+PyObject A
+
+julia> newout_simplify = gops.simplify(out)
+[2021-06-04 10:08:34,420 graph_optimizer.py:138] Start fusing einsum
+[2021-06-04 10:08:34,420 graph_optimizer.py:190] Generated new subscript: ab,bd,dc->ac
+[2021-06-04 10:08:34,421 graph_transformer.py:292] Rewrite to new subscript: ab->ab
+[2021-06-04 10:08:34,421 graph_optimizer.py:138] Start fusing einsum
+[2021-06-04 10:08:34,421 graph_optimizer.py:190] Generated new subscript: ab->ab
+PyObject A
+```
