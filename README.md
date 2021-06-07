@@ -49,3 +49,8 @@ julia> out_simplified = gops.simplify(out)
 [2021-06-04 10:08:34,421 graph_optimizer.py:190] Generated new subscript: ab->ab
 PyObject A
 ```
+
+To disable AutoHOOT loggings, run 
+```
+set_logger(disabled=true)
+```
