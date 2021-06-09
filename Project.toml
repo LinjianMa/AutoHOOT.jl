@@ -8,6 +8,7 @@ ITensors = "9136182c-28ba-11e9-034c-db9fb085ebd5"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 
 [compat]
+ITensors = "0.1, 0.2"
 PyCall = "1"
 julia = "1"
 
