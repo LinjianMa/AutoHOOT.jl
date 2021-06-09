@@ -54,3 +54,38 @@ To disable AutoHOOT loggings, run
 ```
 set_logger(disabled=true)
 ```
+
+# Examples
+
+Here is an example of generating optimal sequences of einsum expressions for the gradients of a network contraction with respect to each tensor in the network:
+```julia
+using AutoHOOT
+
+set_logger(disabled=true)
+
+const ad = AutoHOOT.autodiff
+const go = AutoHOOT.graphops
+
+x1 = ad.Variable(name = "x1", shape = [2, 3])
+x2 = ad.Variable(name = "x2", shape = [3, 4])
+x3 = ad.Variable(name = "x3", shape = [4, 5])
+x4 = ad.Variable(name = "x4", shape = [5, 6])
+x5 = ad.Variable(name = "x5", shape = [6, 2])
+ein = ad.einsum("ij,jk,kl,lm,mi->", x1, x2, x3, x4, x5)
+@show ein
+ein_opt = go.generate_optimal_tree(ein)
+@show ein_opt
+ein_grads = ad.gradients(ein_opt, [x1, x2, x3, x4, x5])
+display(ein_grads)
+```
+which outputs:
+```julia
+ein = PyObject T.einsum('ij,jk,kl,lm,mi->',x1,x2,x3,x4,x5)
+ein_opt = PyObject T.einsum('ij,ij->',T.einsum('ik,jk->ij',T.einsum('il,kl->ik',T.einsum('mi,lm->il',x5,x4),x3),x2),x1)
+5-element Vector{PyCall.PyObject}:
+ PyObject T.einsum('ab,->ab',T.einsum('ik,jk->ij',T.einsum('il,kl->ik',T.einsum('mi,lm->il',x5,x4),x3),x2),1.0)
+ PyObject T.einsum('ac,ab->bc',T.einsum('il,kl->ik',T.einsum('mi,lm->il',x5,x4),x3),T.einsum('ab,->ab',x1,1.0))
+ PyObject T.einsum('ac,ab->bc',T.einsum('mi,lm->il',x5,x4),T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0)))
+ PyObject T.einsum('ca,ab->bc',x5,T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))))
+ PyObject T.einsum('bc,ab->ca',x4,T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))))
+```
