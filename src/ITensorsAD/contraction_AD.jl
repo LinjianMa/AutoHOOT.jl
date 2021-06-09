@@ -48,7 +48,7 @@ function generate_network(out_node, node_dict)
             end
             push!(index_list, index_dict[char])
         end
-        tensor = replaceinds(node_dict[node], node_dict[node].inds => index_list)
+        tensor = replaceinds(node_dict[node], inds(node_dict[node]) => index_list)
         push!(tensor_list, tensor)
     end
     return tensor_list
@@ -83,7 +83,7 @@ function input_nodes_generation(network::Array)
     node_dict = Dict()
     for (i, tensor) in enumerate(network)
         nodename = "tensor" * Char('0' + i)
-        shape = [index.space for index in tensor.inds]
+        shape = [space(index) for index in inds(tensor)]
         node = ad.Variable(nodename, shape = shape)
         push!(node_list, node)
         node_dict[node] = tensor
@@ -98,7 +98,7 @@ function einstr_generation(network::Array)
     # build input string
     for tensor in network
         str = ""
-        for index in tensor.inds
+        for index in inds(tensor)
             if haskey(index_dict, index) == false
                 index_dict[index] = newchar
                 newchar += 1

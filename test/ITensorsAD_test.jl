@@ -16,6 +16,9 @@ using ITensors
     node, dict = AutoHOOT.ITensorsAD.generate_einsum_expr([A, C, B])
     network = AutoHOOT.ITensorsAD.generate_network(node, dict)
     out2 = network[1] * network[2] * network[3]
-    @test isapprox(out.store, out2.store)
-
+    if ITensors.version() < v"0.2"
+      @test isapprox(store(out), store(out2))
+    else
+      @test isapprox(storage(out), storage(out2))
+    end
 end
