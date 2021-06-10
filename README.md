@@ -61,6 +61,7 @@ Here is an example of generating optimal sequences of einsum expressions for the
 <details>
  <summaryClick me! ></summary>
 <p>
+ 
 ```julia
 using AutoHOOT
 
@@ -100,7 +101,12 @@ display(ein_grads_cache)
 ```
  </p>
 </details>
+
 which outputs:
+<details>
+ <summaryClick me! ></summary>
+<p>
+ 
 ```julia
 Tensor shapes we want to contract:
 [x1.shape, x2.shape, x3.shape, x4.shape, x5.shape] = [[2, 3], [3, 4], [4, 5], [5, 6], [6, 2]]
@@ -139,3 +145,5 @@ Einsum expressions for computing the gradients with caching:
  PyObject T.einsum('ca,ab->bc',x5,T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))))
  PyObject T.einsum('bc,ab->ca',x4,T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))))
 ```
+ </p>
+</details>
