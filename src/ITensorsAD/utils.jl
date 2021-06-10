@@ -44,6 +44,7 @@ Example
 """
 function extract_network(out_node, node_dict)
     topo_order = ad.find_topo_sort([out_node])
+    node_dict = copy(node_dict)
     for node in topo_order
         if haskey(node_dict, node) == false
             node_dict[node] = [node_dict[in_node] for in_node in node.inputs]
