@@ -2,7 +2,7 @@
 
 This package is a Julia wrapper around [AutoHOOT](https://github.com/LinjianMa/AutoHOOT), a Python-based automatic differentiation framework targeting high-order optimization for large scale tensor computations.
 
-# Installatoin
+# Installation
 
 1. Clone AutoHOOT locally, for example:
 ```bash

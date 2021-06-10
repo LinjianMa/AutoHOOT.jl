@@ -33,15 +33,18 @@ export Variable,
     transposed_vjps,
     gradients,
     hvp,
-    hessian
+    hessian,
+    # util function
+    find_topo_sort
 
-const ad = PyNULL()
+const ah = PyNULL()
 
 function __init__()
-    copy!(ad, pyimport_conda("autohoot.autodiff", "autohoot"))
+    copy!(ah, pyimport_conda("autohoot", "autohoot"))
 end
 
-@func_loader ad Variable Matrix Constant Empty add mul sub add_byconst mul_byconst sub_byconst ones oneslike zeroslike negative power einsum norm identity tensorinv scalar transpose sum tensordot
-@func_loader ad Executor jacobians jvps jtjvps transposed_vjps gradients hvp hessian
+@func_loader ah.autodiff Variable Matrix Constant Empty add mul sub add_byconst mul_byconst sub_byconst ones oneslike zeroslike negative power einsum norm identity tensorinv scalar transpose sum tensordot
+@func_loader ah.autodiff Executor jacobians jvps jtjvps transposed_vjps gradients hvp hessian
+@func_loader ah.utils find_topo_sort
 
 end
