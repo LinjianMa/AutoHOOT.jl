@@ -58,6 +58,9 @@ set_logger(disabled=true)
 # Examples
 
 Here is an example of generating optimal sequences of einsum expressions for the gradients of a network contraction with respect to each tensor in the network:
+<details>
+ <summaryClick me! ></summary>
+<p>
 ```julia
 using AutoHOOT
 
@@ -95,6 +98,8 @@ ein_grads_cache = ad.find_topo_sort(ein_grads)
 println("\nEinsum expressions for computing the gradients with caching:")
 display(ein_grads_cache)
 ```
+ </p>
+</details>
 which outputs:
 ```julia
 Tensor shapes we want to contract:
