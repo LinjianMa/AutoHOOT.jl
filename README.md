@@ -71,21 +71,66 @@ x2 = ad.Variable(name = "x2", shape = [3, 4])
 x3 = ad.Variable(name = "x3", shape = [4, 5])
 x4 = ad.Variable(name = "x4", shape = [5, 6])
 x5 = ad.Variable(name = "x5", shape = [6, 2])
+
+println("\nTensor shapes we want to contract:")
+@show [x1.shape, x2.shape, x3.shape, x4.shape, x5.shape]
+
 ein = ad.einsum("ij,jk,kl,lm,mi->", x1, x2, x3, x4, x5)
+
+println("\nOriginal einsum expression for the contraction we want to take the gradient of:")
 @show ein
-ein_opt = go.generate_optimal_tree(ein)
+
+ein_opt = go.optimize(ein)
+
+println("\nOptimized contraction sequence:")
 @show ein_opt
+
 ein_grads = ad.gradients(ein_opt, [x1, x2, x3, x4, x5])
+
+println("\nEinsum expressions for computing the gradients:")
 display(ein_grads)
+
+ein_grads_cache = ad.find_topo_sort(ein_grads)
+
+println("\nEinsum expressions for computing the gradients with caching:")
+display(ein_grads_cache)
 ```
 which outputs:
 ```julia
+Tensor shapes we want to contract:
+[x1.shape, x2.shape, x3.shape, x4.shape, x5.shape] = [[2, 3], [3, 4], [4, 5], [5, 6], [6, 2]]
+
+Original einsum expression for the contraction we want to take the gradient of:
 ein = PyObject T.einsum('ij,jk,kl,lm,mi->',x1,x2,x3,x4,x5)
-ein_opt = PyObject T.einsum('ij,ij->',T.einsum('ik,jk->ij',T.einsum('il,kl->ik',T.einsum('mi,lm->il',x5,x4),x3),x2),x1)
+
+Optimized contraction sequence:
+ein_opt = PyObject T.einsum('ab,ab->',T.einsum('ab,cb->ac',T.einsum('ab,cb->ac',T.einsum('bc,ca->ab',x4,x5),x3),x2),x1)
+
+Einsum expressions for computing the gradients:
 5-element Vector{PyCall.PyObject}:
- PyObject T.einsum('ab,->ab',T.einsum('ik,jk->ij',T.einsum('il,kl->ik',T.einsum('mi,lm->il',x5,x4),x3),x2),1.0)
- PyObject T.einsum('ac,ab->bc',T.einsum('il,kl->ik',T.einsum('mi,lm->il',x5,x4),x3),T.einsum('ab,->ab',x1,1.0))
- PyObject T.einsum('ac,ab->bc',T.einsum('mi,lm->il',x5,x4),T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0)))
+ PyObject T.einsum('ab,->ab',T.einsum('ab,cb->ac',T.einsum('ab,cb->ac',T.einsum('bc,ca->ab',x4,x5),x3),x2),1.0)
+ PyObject T.einsum('ac,ab->bc',T.einsum('ab,cb->ac',T.einsum('bc,ca->ab',x4,x5),x3),T.einsum('ab,->ab',x1,1.0))
+ PyObject T.einsum('ac,ab->bc',T.einsum('bc,ca->ab',x4,x5),T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0)))
+ PyObject T.einsum('ca,ab->bc',x5,T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))))
+ PyObject T.einsum('bc,ab->ca',x4,T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))))
+
+Einsum expressions for computing the gradients with caching:
+17-element Vector{PyCall.PyObject}:
+ PyObject x4
+ PyObject x5
+ PyObject T.einsum('bc,ca->ab',x4,x5)
+ PyObject x3
+ PyObject T.einsum('ab,cb->ac',T.einsum('bc,ca->ab',x4,x5),x3)
+ PyObject x2
+ PyObject T.einsum('ab,cb->ac',T.einsum('ab,cb->ac',T.einsum('bc,ca->ab',x4,x5),x3),x2)
+ PyObject 1.0
+ PyObject T.einsum('ab,->ab',T.einsum('ab,cb->ac',T.einsum('ab,cb->ac',T.einsum('bc,ca->ab',x4,x5),x3),x2),1.0)
+ PyObject x1
+ PyObject T.einsum('ab,->ab',x1,1.0)
+ PyObject T.einsum('ac,ab->bc',T.einsum('ab,cb->ac',T.einsum('bc,ca->ab',x4,x5),x3),T.einsum('ab,->ab',x1,1.0))
+ PyObject T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))
+ PyObject T.einsum('ac,ab->bc',T.einsum('bc,ca->ab',x4,x5),T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0)))
+ PyObject T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0)))
  PyObject T.einsum('ca,ab->bc',x5,T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))))
  PyObject T.einsum('bc,ab->ca',x4,T.einsum('bc,ab->ac',x3,T.einsum('bc,ab->ac',x2,T.einsum('ab,->ab',x1,1.0))))
 ```
