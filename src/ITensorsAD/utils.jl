@@ -14,6 +14,7 @@ A list of ITensor tensors.
 """
 function compute_graph(out_nodes, node_dict)
     topo_order = ad.find_topo_sort(out_nodes)
+    node_dict = copy(node_dict)
     for node in topo_order
         if haskey(node_dict, node) == false
             # TODO: change this to general contract
