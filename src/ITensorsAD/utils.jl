@@ -16,9 +16,7 @@ function compute_graph(out_nodes, node_dict)
     topo_order = ad.find_topo_sort(out_nodes)
     for node in topo_order
         if haskey(node_dict, node) == false
-            # TODO: change this to general contract
-            @assert size(node.inputs)[1] == 2
-            node_dict[node] = node_dict[node.inputs[1]] * node_dict[node.inputs[2]]
+            node_dict[node] = contract([node_dict[n] for n in node.inputs])
         end
     end
     return [node_dict[node] for node in out_nodes]
