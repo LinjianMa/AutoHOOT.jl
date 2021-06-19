@@ -3,6 +3,13 @@ using ..autodiff
 
 const ad = autodiff
 
+function get_symbol(i::Int)
+    if i < 52
+        return 'a' + i
+    end
+    return Char(i + 140)
+end
+
 """Compute the computational graph defined in AutoHOOT.
 Parameters
 ----------
@@ -112,7 +119,7 @@ function input_nodes_generation(network::Array)
     node_list = []
     node_dict = Dict()
     for (i, tensor) in enumerate(network)
-        nodename = "tensor" * Char('0' + i)
+        nodename = "tensor" * string(i)
         shape = [space(index) for index in inds(tensor)]
         node = ad.Variable(nodename, shape = shape)
         push!(node_list, node)
@@ -123,15 +130,15 @@ end
 
 function einstr_generation(network::Array)
     index_dict = Dict{Index{Int64},Char}()
-    newchar = 'a'
+    label_num = 0
     string_list = []
     # build input string
     for tensor in network
         str = ""
         for index in inds(tensor)
             if haskey(index_dict, index) == false
-                index_dict[index] = newchar
-                newchar += 1
+                index_dict[index] = get_symbol(label_num)
+                label_num += 1
             end
             str = str * index_dict[index]
         end

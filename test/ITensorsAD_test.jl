@@ -50,22 +50,22 @@ end
 end
 
 @testset "test optimal contraction path" begin
-  i = Index(2, "i")
-  j = Index(3, "j")
-  k = Index(4, "k")
-  l = Index(5, "l")
-  m = Index(6, "m")
+    i = Index(2, "i")
+    j = Index(3, "j")
+    k = Index(4, "k")
+    l = Index(5, "l")
+    m = Index(6, "m")
 
-  A = randomITensor(i, j)
-  B = randomITensor(j, k)
-  C = randomITensor(k, l)
-  D = randomITensor(l, m)
-  E = randomITensor(m, i)
+    A = randomITensor(i, j)
+    B = randomITensor(j, k)
+    C = randomITensor(k, l)
+    D = randomITensor(l, m)
+    E = randomITensor(m, i)
 
-  out = A * B * C * D * E
+    out = A * B * C * D * E
 
-  network = itensorad.generate_optimal_tree([A, B, C, D, E])
-  out2 = contract(network)
+    network = itensorad.generate_optimal_tree([A, B, C, D, E])
+    out2 = contract(network)
 
-  @test isapprox(storage(out), storage(out2))
+    @test isapprox(storage(out), storage(out2))
 end
