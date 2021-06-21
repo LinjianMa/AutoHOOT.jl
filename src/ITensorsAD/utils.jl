@@ -4,12 +4,18 @@ using ..autodiff
 const ad = autodiff
 
 function get_symbol(i::Int)
-    if i < 52
+    if i < 26
         return 'a' + i
+    elseif i < 52
+        return 'A' + i - 26
     end
     return Char(i + 140)
 end
 
+"""
+Retrieve the key from the dictionary that maps AutoHOOT nodes
+to ITensor tensors. Returns Nothing if key not exists.
+"""
 function retrieve_key(dict, value)
     for (k, v) in dict
         # Note: here we use inds to check the equality of tensor
