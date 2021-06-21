@@ -17,6 +17,8 @@ function retrieve_key(dict, value)
             return k
         end
     end
+    # value is not in the dict
+    return Nothing
 end
 
 """Compute the computational graph defined in AutoHOOT.
@@ -118,41 +120,50 @@ function generate_network(out_node, node_dict)
     return tensor_list
 end
 
-"""Generate AutoHOOT einsum expression based on ITensor input network
+"""Generate AutoHOOT einsum expression based on a list of ITensor input networks
 Parameters
 ----------
-network: An array of ITensor tensors
+network_list: An array of networks. Each network is represented by an array of ITensor tensors
 Returns
 -------
-An AutoHOOT einsum node;
+A list of AutoHOOT einsum node;
 A dictionary mapping AutoHOOT input node to ITensor tensor
 """
-function generate_einsum_expr(network::Array)
-    input_nodes, node_dict = input_nodes_generation(network)
-    einstr = einstr_generation(network)
-    return ad.einsum(einstr, input_nodes...), node_dict
+function generate_einsum_expr(network_list::Array)
+    node_dict = Dict()
+    outnodes = []
+    for network in network_list
+        input_nodes = input_nodes_generation!(network, node_dict)
+        einstr = einstr_generation(network)
+        push!(outnodes, ad.einsum(einstr, input_nodes...))
+    end
+    return outnodes, node_dict
 end
 
 """Generate AutoHOOT nodes based on ITensor tensors
 Parameters
 ----------
 network: An array of ITensor tensors
+node_dict: A dictionary mapping AutoHOOT node to ITensor tensor.
+node_dict will be inplace updated.
 Returns
 -------
 node_list: An array of AutoHOOT nodes
-node_dict: A dictionary mapping AutoHOOT node to ITensor tensor
 """
-function input_nodes_generation(network::Array)
+function input_nodes_generation!(network::Array, node_dict::Dict)
     node_list = []
-    node_dict = Dict()
     for (i, tensor) in enumerate(network)
-        nodename = "tensor" * string(i)
-        shape = [space(index) for index in inds(tensor)]
-        node = ad.Variable(nodename, shape = shape)
+        node = retrieve_key(node_dict, tensor)
+        if node == Nothing
+            i = length(node_dict) + 1
+            nodename = "tensor" * string(i)
+            shape = [space(index) for index in inds(tensor)]
+            node = ad.Variable(nodename, shape = shape)
+            node_dict[node] = tensor
+        end
         push!(node_list, node)
-        node_dict[node] = tensor
     end
-    return node_list, node_dict
+    return node_list
 end
 
 function einstr_generation(network::Array)

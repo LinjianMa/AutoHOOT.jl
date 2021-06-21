@@ -15,10 +15,11 @@ const itensorad = AutoHOOT.ITensorsAD
     C = randomITensor(k, l)
 
     out = A * B * C
+    network = [A, C, B]
 
-    node, dict = itensorad.generate_einsum_expr([A, C, B])
-    network = itensorad.extract_network(node, dict)
-    network2 = itensorad.generate_network(node, dict)
+    nodes, dict = itensorad.generate_einsum_expr([network])
+    network = itensorad.extract_network(nodes[1], dict)
+    network2 = itensorad.generate_network(nodes[1], dict)
     out2 = network[1] * network[2] * network[3]
     out3 = network2[1] * network2[2] * network2[3]
     @test isapprox(storage(out), storage(out2))
@@ -40,9 +41,10 @@ end
 
 
     out = A * B * C * D * E
+    network = [A, B, C, D, E]
 
-    node, dict = itensorad.generate_einsum_expr([A, B, C, D, E])
-    node = go.generate_optimal_tree(node)
+    nodes, dict = itensorad.generate_einsum_expr([network])
+    node = go.generate_optimal_tree(nodes[1])
     out_list = itensorad.compute_graph([node], dict)
     out2 = out_list[1]
 
