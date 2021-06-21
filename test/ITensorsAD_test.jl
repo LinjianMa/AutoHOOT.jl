@@ -69,3 +69,27 @@ end
 
     @test isapprox(storage(out), storage(out2))
 end
+
+@testset "test gradient" begin
+    i = Index(2, "i")
+    j = Index(3, "j")
+    k = Index(4, "k")
+    l = Index(5, "l")
+    m = Index(6, "m")
+
+    A = randomITensor(i, j)
+    B = randomITensor(j, k)
+    C = randomITensor(k, l)
+    D = randomITensor(l, m)
+    E = randomITensor(m, i)
+
+    gradA_direct = B * C * D * E
+    gradB_direct = A * C * D * E
+
+    networks = itensorad.gradients([A, B, C, D, E], [A, B])
+    gradA = contract(networks[1])
+    gradB = contract(networks[2])
+
+    @test isapprox(norm(gradA_direct), norm(gradA))
+    @test isapprox(norm(gradB_direct), norm(gradB))
+end

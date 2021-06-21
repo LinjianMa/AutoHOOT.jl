@@ -10,6 +10,15 @@ function get_symbol(i::Int)
     return Char(i + 140)
 end
 
+function retrieve_key(dict, value)
+    for (k, v) in dict
+        # Note: here we use inds to check the equality of tensor
+        if inds(v) == inds(value)
+            return k
+        end
+    end
+end
+
 """Compute the computational graph defined in AutoHOOT.
 Parameters
 ----------
@@ -23,8 +32,17 @@ function compute_graph(out_nodes, node_dict)
     topo_order = ad.find_topo_sort(out_nodes)
     node_dict = copy(node_dict)
     for node in topo_order
-        if haskey(node_dict, node) == false
-            node_dict[node] = contract([node_dict[n] for n in node.inputs])
+        if haskey(node_dict, node) == false && node.name != "1.0"
+            input_list = []
+            for n in node.inputs
+                if haskey(node_dict, n)
+                    push!(input_list, node_dict[n])
+                else
+                    # the scalar that can neglect
+                    @assert(n.name == "1.0")
+                end
+            end
+            node_dict[node] = contract(input_list)
         end
     end
     return [node_dict[node] for node in out_nodes]
@@ -51,8 +69,17 @@ function extract_network(out_node, node_dict)
     topo_order = ad.find_topo_sort([out_node])
     node_dict = copy(node_dict)
     for node in topo_order
-        if haskey(node_dict, node) == false
-            node_dict[node] = [node_dict[in_node] for in_node in node.inputs]
+        if haskey(node_dict, node) == false && node.name != "1.0"
+            input_list = []
+            for n in node.inputs
+                if haskey(node_dict, n)
+                    push!(input_list, node_dict[n])
+                else
+                    # the scalar that can neglect
+                    @assert(n.name == "1.0")
+                end
+            end
+            node_dict[node] = input_list
         end
     end
     return node_dict[out_node]
