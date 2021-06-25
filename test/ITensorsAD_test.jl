@@ -1,5 +1,6 @@
 using AutoHOOT
 using ITensors
+using Zygote
 
 const go = AutoHOOT.graphops
 const itensorad = AutoHOOT.ITensorsAD
@@ -94,4 +95,21 @@ end
 
     @test isapprox(norm(gradA_direct), norm(gradA))
     @test isapprox(norm(gradB_direct), norm(gradB))
+end
+
+@testset "test zygote interface" begin
+    i = Index(2, "i")
+    j = Index(3, "j")
+    k = Index(2, "k")
+    A = randomITensor(i, j)
+    B = randomITensor(j, k)
+    C = randomITensor(k, i)
+
+    function network(A)
+        tensor_network = [A, B, C]
+        out = itensorad.batch_tensor_contraction([tensor_network], A)
+        return itensorad.extract_scalar(out)
+    end
+    grad_A = gradient(network, A)
+    @test isapprox(norm(grad_A), norm(B * C))
 end
