@@ -1,5 +1,6 @@
 using Zygote
 using Zygote: @adjoint
+using ITensors: setinds
 
 const ad = autodiff
 const go = graphops

@@ -113,3 +113,23 @@ end
     grad_A = gradient(network, A)
     @test isapprox(norm(grad_A), norm(B * C))
 end
+
+@testset "test zygote interface for inner product" begin
+    i = Index(2, "i")
+    a = randomITensor(i)
+    # build a symmetric H
+    H = ITensor(i, i')
+    H[i=>1, i'=>1] = 1.0
+    H[i=>2, i'=>1] = 2.0
+    H[i=>1, i'=>2] = 2.0
+    H[i=>2, i'=>2] = 3.0
+
+    function inner(a)
+        b = prime(a)
+        network = [a, H, b]
+        inner = itensorad.batch_tensor_contraction([network], network...)
+        return itensorad.extract_scalar(inner)
+    end
+    grad = gradient(inner, a)
+    @test isapprox(norm(grad), norm(2 * H * a))
+end
