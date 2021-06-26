@@ -11,21 +11,18 @@ const go = graphops
     return prime(T), adjoint_pullback
 end
 
+@adjoint function prime(T::ITensor, indices)
+    indsT = inds(T)
+    adjoint_pullback(dT::ITensor) = (setinds(dT, indsT), nothing)
+    return prime(T, indices), adjoint_pullback
+end
+
 scalar(A::ITensor) = ITensors.scalar(A)
 
 @adjoint function scalar(A::ITensor)
     adjoint_pullback(s) = (ITensor(s),)
     return scalar(A), adjoint_pullback
 end
-
-"""Extract the scalar from an array with only 1 element.
-"""
-function extract_scalar(v::Array)
-    @assert length(v) == 1
-    return scalar(v[1])
-end
-
-@adjoint extract_scalar(v::Array) = extract_scalar(v), g -> ([ITensor(g)],)
 
 """Perform a batch of tensor contractions, each one defined by a tensor network.
 Parameters
@@ -52,10 +49,14 @@ end
         nodes[i] = go.generate_optimal_tree(n)
     end
     # build jacobians graphs
-    innodes = [retrieve_key(node_dict, t) for t in variables]
+    innodes_list = []
+    for network in networks
+        innodes = [retrieve_key(node_dict, t) for t in variables if t in network]
+        push!(innodes_list, innodes)
+    end
     jacobians_graph = []
-    for n in nodes
-        jac = ad.gradients(n, innodes)
+    for (i, n) in enumerate(nodes)
+        jac = ad.gradients(n, innodes_list[i])
         push!(jacobians_graph, jac)
     end
     # compute the graph
@@ -66,18 +67,22 @@ end
         push!(jacobians, jac)
     end
     # compute the vector-jacobian products
-    function vjps(vector::Array)
-        vjp_output = []
-        out_size = length(jacobians[1])
-        in_size = length(jacobians)
-        @assert(length(vector) == in_size)
-        for u_index = 1:out_size
-            out = jacobians[1][u_index] * vector[1]
-            for i = 2:in_size
-                out += jacobians[i][u_index] * vector[i]
+    function vjps(vector)
+        vjp_dict = Dict()
+        @assert(length(vector) == length(jacobians))
+        for (i, jac) in enumerate(jacobians)
+            innodes = innodes_list[i]
+            for (j, t) in enumerate(jac)
+                innode = innodes[j]
+                if haskey(vjp_dict, innode)
+                    vjp_dict[innode] = vjp_dict[innode] + vector[i] * t
+                else
+                    vjp_dict[innode] = vector[i] * t
+                end
             end
-            push!(vjp_output, out)
         end
+        innodes = [retrieve_key(node_dict, t) for t in variables]
+        vjp_output = [vjp_dict[n] for n in innodes]
         return (nothing, Tuple(vjp_output)...)
     end
     return forward_tensors, vjps

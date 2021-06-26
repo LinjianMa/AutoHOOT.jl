@@ -108,7 +108,7 @@ end
     function network(A)
         tensor_network = [A, B, C]
         out = itensorad.batch_tensor_contraction([tensor_network], A)
-        return itensorad.extract_scalar(out)
+        return itensorad.scalar(sum(out))
     end
     grad_A = gradient(network, A)
     @test isapprox(norm(grad_A), norm(B * C))
@@ -128,8 +128,38 @@ end
         b = prime(a)
         network = [a, H, b]
         inner = itensorad.batch_tensor_contraction([network], network...)
-        return itensorad.extract_scalar(inner)
+        return itensorad.scalar(sum(inner))
     end
     grad = gradient(inner, a)
     @test isapprox(norm(grad), norm(2 * H * a))
+end
+
+@testset "test zygote interface with sum" begin
+    A = ITensor(3.0)
+    B = ITensor(2.0)
+    function add(A, B)
+        return itensorad.scalar(sum([A, B]))
+    end
+    grad = gradient(add, A, B)
+    @test isapprox(norm(grad[1]), norm(ITensor(1.0)))
+end
+
+@testset "test zygote interface with multiple networks" begin
+    i = Index(2, "i")
+    j = Index(2, "j")
+    k = Index(2, "k")
+    l = Index(2, "l")
+    A = randomITensor(i, j)
+    B = randomITensor(j, i)
+    C = randomITensor(j, k)
+    D = randomITensor(k, l)
+    E = randomITensor(l, i)
+
+    function inner(A)
+        networks = [[A, B], [A, C, D, E]]
+        contract = itensorad.batch_tensor_contraction(networks, A, B, C, D, E)
+        return itensorad.scalar(sum(contract))
+    end
+    grad = gradient(inner, A)
+    @test isapprox(norm(grad), norm(B + C * D * E))
 end
