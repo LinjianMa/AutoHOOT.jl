@@ -24,7 +24,7 @@ function retrieve_key(dict, value)
         end
     end
     # value is not in the dict
-    return Nothing
+    return nothing
 end
 
 """Compute the computational graph defined in AutoHOOT.
@@ -160,7 +160,7 @@ function input_nodes_generation!(network::Array, node_dict::Dict)
     node_list = []
     for (i, tensor) in enumerate(network)
         node = retrieve_key(node_dict, tensor)
-        if node == Nothing
+        if node == nothing
             i = length(node_dict) + 1
             nodename = "tensor" * string(i)
             shape = [space(index) for index in inds(tensor)]
