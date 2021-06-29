@@ -5,12 +5,11 @@ using ITensors: setinds
 const ad = autodiff
 const go = graphops
 
-@adjoint function prime(T::ITensor)
-    indsT = inds(T)
-    adjoint_pullback(dT::ITensor) = (setinds(dT, indsT),)
-    return prime(T), adjoint_pullback
-end
+@adjoint prime(A::ITensor) = prime(A), dA -> (noprime(dA),)
 
+@adjoint noprime(A::ITensor) = noprime(A), dA -> (prime(dA),)
+
+# TODO
 @adjoint function prime(T::ITensor, indices)
     indsT = inds(T)
     adjoint_pullback(dT::ITensor) = (setinds(dT, indsT), nothing)
@@ -19,10 +18,13 @@ end
 
 scalar(A::ITensor) = ITensors.scalar(A)
 
-@adjoint function scalar(A::ITensor)
-    adjoint_pullback(s) = (ITensor(s),)
-    return scalar(A), adjoint_pullback
-end
+@adjoint scalar(A::ITensor) = scalar(A), s -> (ITensor(s),)
+
+@adjoint ITensor(s) = ITensor(s), A -> (scalar(A),)
+
+@adjoint Base.:+(A::ITensor, B::ITensor) = A + B, v -> (v, v)
+
+@adjoint Base.:*(A::ITensor, B::ITensor) = A * B, v -> (v * B, v * A)
 
 """Perform a batch of tensor contractions, each one defined by a tensor network.
 Parameters

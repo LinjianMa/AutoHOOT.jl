@@ -163,3 +163,23 @@ end
     grad = gradient(inner, A)
     @test isapprox(norm(grad), norm(B + C * D * E))
 end
+
+@testset "test simple hvp" begin
+    i = Index(2, "i")
+    A = randomITensor(i)
+    B = randomITensor(i, i')
+    B[i=>1, i'=>1] = 1.0
+    B[i=>2, i'=>1] = 2.0
+    B[i=>1, i'=>2] = 2.0
+    B[i=>2, i'=>2] = 3.0
+    v = randomITensor(i)
+
+    network(x) = itensorad.scalar((x * B) * prime(x))
+    grad(x) = gradient(network, x)[1]
+    inner(x) = itensorad.scalar((grad(x) * v))
+    hvp(x) = gradient(inner, x)[1]
+
+    hvp_out = hvp(A)
+    hvp_true = noprime(2 * B * v)
+    @test isapprox(norm(hvp_out - hvp_true), 0.0)
+end
