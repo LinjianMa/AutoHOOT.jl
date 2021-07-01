@@ -183,3 +183,26 @@ end
     hvp_true = noprime(2 * B * v)
     @test isapprox(norm(hvp_out - hvp_true), 0.0)
 end
+
+@testset "test hvp with batch_tensor_contraction" begin
+    i = Index(2, "i")
+    A = randomITensor(i)
+    B = randomITensor(i, i')
+    B[i=>1, i'=>1] = 1.0
+    B[i=>2, i'=>1] = 2.0
+    B[i=>1, i'=>2] = 2.0
+    B[i=>2, i'=>2] = 3.0
+    v = randomITensor(i)
+
+    function network(x)
+        xprime = prime(x)
+        inner = sum(itensorad.batch_tensor_contraction([[x, xprime, B]], x, xprime))
+        return itensorad.scalar(inner)
+    end
+    grad(x) = gradient(network, x)[1]
+    inner(x) = itensorad.scalar((grad(x) * v))
+    hvp(x) = gradient(inner, x)[1]
+    hvp_out = hvp(A)
+    hvp_true = noprime(2 * B * v)
+    @test isapprox(norm(hvp_out - hvp_true), 0.0)
+end

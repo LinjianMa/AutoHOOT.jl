@@ -94,7 +94,7 @@ function vjps(executor::Executor, vars, vector)
     return Executor([network_sum_dict[n] for n in innodes], node_dict)
 end
 
-@adjoint vjps(executor::Executor, vars::Array, vector::Array) =
+@adjoint vjps(executor::Executor, vars, vector) =
     vjps(executor, vars, vector), de -> (nothing, nothing, nothing)
 
 batch_tensor_contraction(executor::Executor, vars...) = run(executor)
