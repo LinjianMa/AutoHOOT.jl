@@ -18,12 +18,10 @@ to ITensor tensors. Returns Nothing if key not exists.
 """
 function retrieve_key(dict, value)
     for (k, v) in dict
-        # Note: here we use inds to check the equality of tensor
-        if inds(v) == inds(value)
+        if v === value
             return k
         end
     end
-    # value is not in the dict
     return nothing
 end
 
@@ -36,9 +34,8 @@ Returns
 -------
 A list of ITensor tensors.
 """
-function compute_graph(out_nodes, node_dict)
+function compute_graph!(out_nodes, node_dict)
     topo_order = ad.find_topo_sort(out_nodes)
-    node_dict = copy(node_dict)
     for node in topo_order
         if haskey(node_dict, node) == false && node.name != "1.0"
             input_list = []
@@ -55,6 +52,8 @@ function compute_graph(out_nodes, node_dict)
     end
     return [node_dict[node] for node in out_nodes]
 end
+
+compute_graph(out_nodes, node_dict) = compute_graph!(out_nodes, copy(node_dict))
 
 """Extract an ITensor network from an input network based on AutoHOOT einsum tree.
 The ITensor input network is defined by the tensors in node_dict.
@@ -91,6 +90,13 @@ function extract_network(out_node, node_dict)
         end
     end
     return node_dict[out_node]
+end
+
+# perform inner product between two nodes
+function inner(n1, n2)
+    @assert(n1.shape == n2.shape)
+    str = join([get_symbol(i) for i = 1:length(n1.shape)], "")
+    return ad.einsum(str * "," * str * "->", n1, n2)
 end
 
 """Generate ITensor input network based on AutoHOOT einsum expression
@@ -146,6 +152,19 @@ function generate_einsum_expr(network_list::Array)
     return outnodes, node_dict
 end
 
+function update_dict!(node_dict::Dict, tensor)
+    i = length(node_dict) + 1
+    if length(inds(tensor)) != 0
+        nodename = "tensor" * string(i)
+        shape = [space(index) for index in inds(tensor)]
+        node = ad.Variable(nodename, shape = shape)
+    else
+        node = ad.scalar(scalar(tensor))
+    end
+    node_dict[node] = tensor
+    return node
+end
+
 """Generate AutoHOOT nodes based on ITensor tensors
 Parameters
 ----------
@@ -161,11 +180,7 @@ function input_nodes_generation!(network::Array, node_dict::Dict)
     for (i, tensor) in enumerate(network)
         node = retrieve_key(node_dict, tensor)
         if node == nothing
-            i = length(node_dict) + 1
-            nodename = "tensor" * string(i)
-            shape = [space(index) for index in inds(tensor)]
-            node = ad.Variable(nodename, shape = shape)
-            node_dict[node] = tensor
+            node = update_dict!(node_dict, tensor)
         end
         push!(node_list, node)
     end

@@ -5,6 +5,40 @@ using ITensors: setinds
 const ad = autodiff
 const go = graphops
 
+# represent a sum of tensor networks
+mutable struct NetworkSum
+    nodes::Array
+end
+
+struct Executor
+    net_sums::Array{<:NetworkSum}
+    feed_dict::Dict
+end
+
+NetworkSum() = NetworkSum([])
+
+function Executor(networks::Array)
+    nodes, node_dict = generate_einsum_expr(networks)
+    # TODO: add caching here
+    net_sums = [NetworkSum([go.generate_optimal_tree(n)]) for n in nodes]
+    return Executor(net_sums, node_dict)
+end
+
+@adjoint Executor(networks::Array) = Executor(networks), dv -> (nothing,)
+
+# TODO: add caching intermediates here
+run(net_sum::NetworkSum, feed_dict::Dict) =
+    ITensors.sum(compute_graph(net_sum.nodes, feed_dict))
+
+inner(net_sum::NetworkSum, n2) = NetworkSum([inner(n1, n2) for n1 in net_sum.nodes])
+
+Base.push!(net_sum::NetworkSum, node) = Base.push!(net_sum.nodes, node)
+
+run(executor::Executor) =
+    [run(net_sum, executor.feed_dict) for net_sum in executor.net_sums]
+
+Base.length(executor::Executor) = Base.length(executor.net_sums)
+
 @adjoint prime(A::ITensor) = prime(A), dA -> (noprime(dA),)
 
 @adjoint noprime(A::ITensor) = noprime(A), dA -> (prime(dA),)
@@ -26,66 +60,61 @@ scalar(A::ITensor) = ITensors.scalar(A)
 
 @adjoint Base.:*(A::ITensor, B::ITensor) = A * B, v -> (v * B, v * A)
 
+function construct_gradient!(net_sum::NetworkSum, innodes::Array, feed_dict::Dict)
+    for net in net_sum.nodes
+        inputs = ad.get_all_inputs(net)
+        vars = [n for n in inputs if n in innodes]
+        grads = ad.gradients(net, vars)
+        for (grad, var) in zip(grads, vars)
+            push!(feed_dict[var], grad)
+        end
+    end
+end
+
+# vector-jacobian product
+function vjps(executor::Executor, vars, vector)
+    node_dict = copy(executor.feed_dict)
+    for t in vector
+        update_dict!(node_dict, t)
+    end
+    # add vector to the executor
+    @assert(length(vector) == length(executor))
+    vec_nodes = [retrieve_key(node_dict, t) for t in vector]
+    net_sums =
+        [inner(net_sum, vnode) for (net_sum, vnode) in zip(executor.net_sums, vec_nodes)]
+    # get the gradient graph
+    innodes = [retrieve_key(node_dict, t) for t in vars]
+    network_sum_dict = Dict()
+    for n in innodes
+        network_sum_dict[n] = NetworkSum()
+    end
+    for net_sum in net_sums
+        construct_gradient!(net_sum, innodes, network_sum_dict)
+    end
+    return Executor([network_sum_dict[n] for n in innodes], node_dict)
+end
+
+@adjoint vjps(executor::Executor, vars::Array, vector::Array) =
+    vjps(executor, vars, vector), de -> (nothing, nothing, nothing)
+
+batch_tensor_contraction(executor::Executor, vars...) = run(executor)
+
+@adjoint function batch_tensor_contraction(executor::Executor, vars...)
+    function pullback(v)
+        output = batch_tensor_contraction(vjps(executor, vars, v), vars...)
+        return (nothing, Tuple(output)...)
+    end
+    return batch_tensor_contraction(executor, vars...), pullback
+end
+
 """Perform a batch of tensor contractions, each one defined by a tensor network.
 Parameters
 ----------
 networks: An array of networks. Each network is represented by an array of ITensor tensors
-variables: the tensors to take derivative of
+vars: the tensors to take derivative of
 Returns
 -------
 A list of tensors representing the contraction outputs of each network.
 """
-function batch_tensor_contraction(networks, variables...)
-    nodes, node_dict = generate_einsum_expr(networks)
-    # TODO: add caching here
-    for (i, n) in enumerate(nodes)
-        nodes[i] = go.generate_optimal_tree(n)
-    end
-    return compute_graph(nodes, node_dict)
-end
-
-@adjoint function batch_tensor_contraction(networks, variables...)
-    nodes, node_dict = generate_einsum_expr(networks)
-    # TODO: add caching here
-    for (i, n) in enumerate(nodes)
-        nodes[i] = go.generate_optimal_tree(n)
-    end
-    # build jacobians graphs
-    innodes_list = []
-    for network in networks
-        innodes = [retrieve_key(node_dict, t) for t in variables if t in network]
-        push!(innodes_list, innodes)
-    end
-    jacobians_graph = []
-    for (i, n) in enumerate(nodes)
-        jac = ad.gradients(n, innodes_list[i])
-        push!(jacobians_graph, jac)
-    end
-    # compute the graph
-    forward_tensors = compute_graph(nodes, node_dict)
-    jacobians = []
-    for jac_graph in jacobians_graph
-        jac = compute_graph(jac_graph, node_dict)
-        push!(jacobians, jac)
-    end
-    # compute the vector-jacobian products
-    function vjps(vector)
-        vjp_dict = Dict()
-        @assert(length(vector) == length(jacobians))
-        for (i, jac) in enumerate(jacobians)
-            innodes = innodes_list[i]
-            for (j, t) in enumerate(jac)
-                innode = innodes[j]
-                if haskey(vjp_dict, innode)
-                    vjp_dict[innode] = vjp_dict[innode] + vector[i] * t
-                else
-                    vjp_dict[innode] = vector[i] * t
-                end
-            end
-        end
-        innodes = [retrieve_key(node_dict, t) for t in variables]
-        vjp_output = [vjp_dict[n] for n in innodes]
-        return (nothing, Tuple(vjp_output)...)
-    end
-    return forward_tensors, vjps
-end
+batch_tensor_contraction(networks::Array, vars...) =
+    batch_tensor_contraction(Executor(networks), vars...)

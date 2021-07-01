@@ -35,7 +35,8 @@ export Variable,
     hvp,
     hessian,
     # util function
-    find_topo_sort
+    find_topo_sort,
+    get_all_inputs
 
 const ah = PyNULL()
 
@@ -45,6 +46,6 @@ end
 
 @func_loader ah.autodiff Variable Matrix Constant Empty add mul sub add_byconst mul_byconst sub_byconst ones oneslike zeroslike negative power einsum norm identity tensorinv scalar transpose sum tensordot
 @func_loader ah.autodiff Executor jacobians jvps jtjvps transposed_vjps gradients hvp hessian
-@func_loader ah.utils find_topo_sort
+@func_loader ah.utils find_topo_sort get_all_inputs
 
 end
