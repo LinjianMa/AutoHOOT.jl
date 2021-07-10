@@ -15,6 +15,4 @@ include("backend.jl")
 include("autodiff.jl")
 include("graph_ops.jl")
 
-include("ITensorsAD/ITensorsAD.jl")
-
 end
