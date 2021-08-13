@@ -8,6 +8,8 @@ export
     optimize,
     simplify,
     fuse_einsums,
+    # graph_dedup
+    dedup,
     # expr_generator
     rewrite_einsum_expr,
     # graph_inv_optimizer
@@ -33,5 +35,6 @@ end
 @func_loader gops.graph_inv_optimizer optimize_inverse prune_inv_node
 @func_loader gops.optimal_tree generate_optimal_tree split_einsum generate_optimal_tree_w_constraint
 @func_loader gops.graph_als_optimizer generate_sequential_optimal_tree
+@func_loader gops.graph_dedup dedup
 
 end

@@ -22,3 +22,16 @@ end
     @test newout_optimize == A
     @test newout_simplify == A
 end
+
+@testset "test dedup" begin
+    A = ad.Variable(name = "A", shape = [2, 2])
+    B = ad.Variable(name = "B", shape = [2, 2])
+    C = ad.Variable(name = "C", shape = [2, 2])
+    D = ad.Variable(name = "D", shape = [2, 2])
+    AB = ad.einsum("ij,jk->ik", A, B)
+    AB2 = ad.einsum("ij,jk->ik", A, B)
+    out1 = ad.einsum("ij,jk->ik", AB, C)
+    out2 = ad.einsum("ij,jk->ik", AB2, D)
+    gops.dedup(out1, out2)
+    @test length(ad.find_topo_sort([out1, out2])) == 7
+end
